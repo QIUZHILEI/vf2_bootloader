@@ -1,6 +1,8 @@
+use core::fmt::Display;
+
 use byteorder::{ByteOrder, LittleEndian};
-use log::debug;
 use lego_device::BlockDevice;
+use log::{debug, error, info};
 
 #[derive(Default, Debug, Clone)]
 #[allow(unused)]
@@ -88,11 +90,16 @@ impl Volume {
 
     pub(crate) fn find(
         &self,
-        name: &str,
+        name: &[u8],
         blk_dev: &mut dyn BlockDevice,
     ) -> Option<(usize, usize)> {
         let mut res = (0, 0);
-        let target_name = serialize_name(name);
+        let target = FileName::from_slice(name);
+        if target.is_none() {
+            error!("The file name entered is invalid!");
+            return None;
+        }
+        let target = target.unwrap();
         let mut lba = self.bpb.root_sector();
         let mut search_num = 0;
         while search_num < self.bpb.sectors_per_cluster {
@@ -101,7 +108,8 @@ impl Volume {
             for index in 0..(512 / 32) {
                 let start = index * 32;
                 if let Some(entry) = DirEntry::deserialize(&buf[start..(start + 32)]) {
-                    if entry.is_file() && target_name == entry.name {
+                    info!("{:?}", entry.name);
+                    if entry.is_file() && target.0 == entry.name {
                         let cluster = entry.cluster();
                         let sector = self.bpb.cluster_to_sector(cluster);
                         debug!(
@@ -110,7 +118,7 @@ impl Volume {
                             cluster,
                             sector,
                             entry.size,
-                            name,
+                            target,
                         );
                         res.0 = self.start_lba + sector;
                         res.1 = entry.size as usize;
@@ -129,15 +137,80 @@ impl Volume {
     }
 }
 
-fn serialize_name(name: &str) -> [u8; 11] {
-    let point = name.find(".").unwrap();
-    let mut name_ascii = [32u8; 11];
-    let name = name.as_bytes();
-    name_ascii[..point].copy_from_slice(&name[..point]);
-    name_ascii[8..(name.len() + 8 - (point + 1))].copy_from_slice(&name[(point + 1)..]);
-    name_ascii
+const CAPITAL: u8 = 65;
+const SMALL: u8 = 97;
+const POINT: u8 = 46;
+const DIGIT: u8 = 48;
+
+fn valid_char(byte: u8) -> Option<u8> {
+    if (byte >= DIGIT && byte <= DIGIT + 9) || (byte >= CAPITAL && byte <= CAPITAL + 25) {
+        Some(byte)
+    } else if byte >= SMALL && byte < SMALL + 26 {
+        Some(byte - (SMALL - CAPITAL))
+    } else {
+        None
+    }
 }
 
+pub const FILE_NAME_LEN: usize = 11;
+struct FileName([u8; FILE_NAME_LEN]);
+
+impl FileName {
+    fn from_slice(slice: &[u8]) -> Option<Self> {
+        let mut name = [32u8; FILE_NAME_LEN];
+        if slice[0] == POINT || slice.len() > FILE_NAME_LEN + 1 {
+            return None;
+        }
+        let mut point_index = 8;
+        for index in 0..8 {
+            if index == slice.len() {
+                return Some(Self(name));
+            }
+            let byte = slice[index];
+            if byte == POINT {
+                point_index = index;
+                break;
+            }
+            match valid_char(byte) {
+                Some(b) => name[index] = b,
+                None => return None,
+            }
+        }
+        if slice.len() - point_index > 3 {
+            return None;
+        }
+        let mut ext_index = 8;
+        for index in (point_index + 1)..slice.len() {
+            let byte = slice[index];
+            match valid_char(byte) {
+                Some(b) => name[ext_index] = b,
+                None => return None,
+            }
+            ext_index += 1;
+        }
+        Some(Self(name))
+    }
+}
+
+impl Display for FileName {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        for index in 0..8 {
+            let byte = self.0[index];
+            if byte == 0 {
+                break;
+            }
+            write!(f, "{}", byte as char).unwrap();
+        }
+        for index in 8..self.0.len() {
+            let byte = self.0[index];
+            if byte == 0 {
+                break;
+            }
+            write!(f, "{}", byte as char).unwrap();
+        }
+        Ok(())
+    }
+}
 #[derive(Debug)]
 struct DirEntry {
     name: [u8; 11],

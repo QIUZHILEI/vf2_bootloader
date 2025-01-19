@@ -1,43 +1,54 @@
+use core::fmt::Write;
+
 use lego_device::{CharDevice, Device};
 use uart_8250::Uart;
-
+const CLK_HZ: u64 = 24000000;
+const BAUD_RATE: u64 = 115200;
 pub const UART_BASE: usize = 0x10000000;
 
-pub static mut UART: UartWrapper = UartWrapper::new(UART_BASE);
-pub struct UartWrapper {
-    uart: Uart,
-}
+static mut UART: UartWrapper = UartWrapper(Uart::new(UART_BASE, CLK_HZ, BAUD_RATE));
+struct UartWrapper(Uart);
 
-impl UartWrapper {
-    const fn new(base_addr: usize) -> Self {
-        Self {
-            uart: Uart::new(base_addr, 13),
-        }
-    }
-}
-
-impl core::fmt::Write for UartWrapper {
+impl Write for UartWrapper {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         s.as_bytes()
             .iter()
-            .for_each(|byte| while self.uart.put_char(*byte).is_err() {});
+            .for_each(|byte| while self.0.put_char(*byte).is_err() {});
         Ok(())
     }
+}
+
+pub fn init() {
+    let uart_ref = unsafe { (&raw mut UART).as_mut().unwrap() };
+    uart_ref.0.init().unwrap();
+}
+
+pub fn get_byte() -> Option<u8> {
+    let uart = unsafe { (&raw mut UART).as_mut().unwrap() };
+    uart.0.get_char().map_or(None, |c| Some(c))
+}
+
+pub fn uart_mut()->&'static mut dyn Write{
+    let uart = unsafe { (&raw mut UART).as_mut().unwrap() };
+    uart as _
 }
 
 #[macro_export]
 macro_rules! println {
     () => {{
-        use core::fmt::Write;
-        writeln!(unsafe{(&raw mut $crate::UART).as_mut().unwrap()}).unwrap();
+        writeln!($crate::uart_mut()).unwrap();
     }};
     ($($arg:tt)*) => {{
-        use core::fmt::Write;
-        writeln!(unsafe{(&raw mut $crate::UART).as_mut().unwrap()},$($arg)*).unwrap();
+        writeln!($crate::uart_mut(),$($arg)*).unwrap();
     }};
 }
 
-pub fn init_uart() {
-    let uart_ref = unsafe { (&raw mut UART).as_mut().unwrap() };
-    uart_ref.uart.init().unwrap();
+#[macro_export]
+macro_rules! print {
+    () => {{
+        write!($crate::uart_mut()).unwrap();
+    }};
+    ($($arg:tt)*) => {{
+        write!($crate::uart_mut(),$($arg)*).unwrap();
+    }};
 }

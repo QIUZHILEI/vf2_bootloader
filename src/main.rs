@@ -6,26 +6,36 @@ use core::{
     arch::global_asm,
     sync::atomic::{AtomicBool, Ordering},
 };
-use lego_arch::mhartid;
-use log::info;
 
-use vf2_bootloader::{init, load_kernel, println};
+use lego_arch::{mhartid, mie, mstatus};
+use log::{error, info};
+
+use vf2_bootloader::{init, load_kernel};
 global_asm!(include_str!("./entry.S"));
-extern "C" {
-    static _bss_start: usize;
-    static _bss_end: usize;
-}
-
-const KERNEL_NAME: &str = "LEGO.OS";
-static BLOCK: AtomicBool = AtomicBool::new(true);
+/// 内核加载地址
 const LOAD_ADDR: usize = 0x40000000;
+const HART0_PLIC0_IE_BASE: usize = 0x0C00_2000;
+const PLIC_IE_BASE: usize = 0x0C00_2080;
+static BLOCK: AtomicBool = AtomicBool::new(true);
 #[no_mangle]
 pub extern "C" fn rust_entry(code_end: usize) -> ! {
+    let mie = mstatus::MStatus::mie;
+    mstatus::clear_mask(mie);
+    let mpp = mstatus::MStatus::mpp;
+    mstatus::set_mask(mpp);
+    let mie_mask: u64 = 1 << 11 | 1 << 7;
+    mie::clear(mie_mask);
+    let hart = mhartid::read();
+    if hart == 0 {
+        disable_interrupt(HART0_PLIC0_IE_BASE);
+    } else {
+        disable_interrupt(PLIC_IE_BASE + (hart as usize - 1) * 100);
+    }
+
     // 让hart 1执行环境的初始化和内核加载过程，其余hart均循环
-    if mhartid::read() == 1 {
-        clear_bss();
+    if hart == 1 {
         init(code_end);
-        load_kernel(LOAD_ADDR, KERNEL_NAME);
+        load_kernel(LOAD_ADDR);
         BLOCK.store(false, Ordering::Relaxed);
         info!("prepare to jump to kernel execution");
     } else {
@@ -45,29 +55,28 @@ pub extern "C" fn rust_entry(code_end: usize) -> ! {
     }
 }
 
-fn clear_bss() {
-    let mut bss = unsafe { _bss_start as *mut usize };
-    let bss_end = unsafe { _bss_end as *mut usize };
+fn disable_interrupt(plic_ie_base: usize) {
     unsafe {
-        while bss.lt(&bss_end) {
-            (*bss) = 0;
-            bss = bss.add(1);
-        }
+        *(plic_ie_base as *mut u32) &= 0x1F;
+        *((plic_ie_base + 4) as *mut u32) = 0;
+        *((plic_ie_base + 8) as *mut u32) = 0;
+        *((plic_ie_base + 12) as *mut u32) = 0;
+        *((plic_ie_base + 16) as *mut u32) &= 0xF8000000;
     }
 }
 
 #[panic_handler]
 pub fn panic(println: &PanicInfo) -> ! {
     if let Some(location) = println.location() {
-        println!(
+        error!(
             "panic occurred in file '{}' at line {}",
             location.file(),
             location.line(),
         );
     } else {
-        println!("panic occurred but can't get location information");
+        error!("panic occurred but can't get location information");
     }
 
-    println!("panic message: {:?}", println.message());
+    error!("panic message: {:?}", println.message());
     loop {}
 }

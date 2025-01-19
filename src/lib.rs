@@ -1,19 +1,20 @@
 #![no_std]
+mod console;
 mod fat;
 mod logger;
 mod mem;
 mod sd;
 mod uart;
 
+use console::Console;
 use core::{ops::Deref, slice};
-
-use fat::Volume;
+use fat::{Volume, FILE_NAME_LEN};
 use gpt::{GptLayout, Partition, PRIMARY_HEADER_LBA};
 use log::{error, info};
-pub use uart::*;
+use uart::*;
 extern crate alloc;
 
-// EFI GUID: C12A7328-F81F-11D2-BA4B-00A0C93EC93B
+/// EFI GUID: C12A7328-F81F-11D2-BA4B-00A0C93EC93B
 const EFI_GUID: [u8; 16] = [
     0x28, 0x73, 0x2A, 0xC1, 0x1F, 0xF8, 0xD2, 0x11, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B,
 ];
@@ -23,7 +24,7 @@ const EFI_GUID: [u8; 16] = [
 ///     - sdio设备
 ///     - 内存分配器
 pub fn init(code_end: usize) {
-    uart::init_uart();
+    uart::init();
     logger::init(log::Level::Info);
     info!("logger init success");
     sd::init();
@@ -31,18 +32,28 @@ pub fn init(code_end: usize) {
     info!("Vision five 2 firmware, environment initialized");
 }
 
-/// 加载内核到内存中
-pub fn load_kernel(load_addr: usize, kernel_name: &str) {
+pub fn load_kernel(load_addr: usize) {
     let volume = find_efi_partition().map_or_else(
         || {
             panic!("can not found an efi partition");
         },
         |efi_part| init_fat(efi_part.start_lba as usize),
     );
-    if let Some((lba, size)) = volume.find(kernel_name, unsafe { sd::blk_dev_mut() }) {
-        load_to_mem(lba, size, load_addr);
-    } else {
-        error!("Can not find kernel {}", kernel_name)
+    info!("please input kernel name");
+    let mut console = Console::new();
+    loop {
+        if let Some(bytes) = console.wait_for_input() {
+            if bytes.len() > FILE_NAME_LEN + 1 {
+                error!("File name is too long!");
+                continue;
+            }
+            if let Some((lba, size)) = volume.find(bytes, unsafe { sd::blk_dev_mut() }) {
+                load_to_mem(lba, size, load_addr);
+                break;
+            } else {
+                error!("Can not find kernel, please re-enter.")
+            }
+        }
     }
 }
 

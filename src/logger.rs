@@ -1,11 +1,12 @@
 use crate::println;
 use log::{Level, Metadata, Record};
+
 static LOGGER: Logger = Logger;
 
 pub fn init(level: Level) {
     if log::set_logger(&LOGGER).is_ok() {
         log::set_max_level(level.to_level_filter())
-    }else{
+    } else {
         panic!("Global logger set failed!");
     }
 }
@@ -19,13 +20,11 @@ impl log::Log for Logger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            println!(
-                "[{}] {}",
-                record.level(),
-                record.args()
-            );
+            println!("[{}] {}", record.level(), record.args());
         }
     }
 
     fn flush(&self) {}
 }
+
+unsafe impl Sync for Logger {}
