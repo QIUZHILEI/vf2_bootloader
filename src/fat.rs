@@ -108,7 +108,6 @@ impl Volume {
             for index in 0..(512 / 32) {
                 let start = index * 32;
                 if let Some(entry) = DirEntry::deserialize(&buf[start..(start + 32)]) {
-                    info!("{:?}", entry.name);
                     if entry.is_file() && target.0 == entry.name {
                         let cluster = entry.cluster();
                         let sector = self.bpb.cluster_to_sector(cluster);

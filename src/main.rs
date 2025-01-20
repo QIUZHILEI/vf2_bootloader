@@ -57,7 +57,7 @@ pub extern "C" fn rust_entry(code_end: usize) -> ! {
 
 fn disable_interrupt(plic_ie_base: usize) {
     unsafe {
-        *(plic_ie_base as *mut u32) &= 0x1F;
+        *(plic_ie_base as *mut u32) = 0;
         *((plic_ie_base + 4) as *mut u32) = 0;
         *((plic_ie_base + 8) as *mut u32) = 0;
         *((plic_ie_base + 12) as *mut u32) = 0;
