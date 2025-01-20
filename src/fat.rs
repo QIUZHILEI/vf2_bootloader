@@ -2,7 +2,7 @@ use core::fmt::Display;
 
 use byteorder::{ByteOrder, LittleEndian};
 use lego_device::BlockDevice;
-use log::{debug, error, info};
+use log::{debug, error};
 
 #[derive(Default, Debug, Clone)]
 #[allow(unused)]
