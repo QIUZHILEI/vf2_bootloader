@@ -175,7 +175,7 @@ impl FileName {
                 None => return None,
             }
         }
-        if slice.len() - point_index > 3 {
+        if slice.len() - 1 - point_index > 3 {
             return None;
         }
         let mut ext_index = 8;

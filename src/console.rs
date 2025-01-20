@@ -2,7 +2,7 @@ use crate::{get_byte, print};
 use log::error;
 
 const LINE_FEED: u8 = 10;
-const BUF_SIZE: usize = 12;
+const BUF_SIZE: usize = 32;
 pub struct Console {
     buf: [u8; BUF_SIZE],
     tail: usize,
