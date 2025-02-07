@@ -7,7 +7,7 @@ use core::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use lego_arch::{mhartid, mie, mstatus};
+use lego_arch::{csrc, csrr, csrs, mstatus::Mstatus, Mie, MHARTID, MIE, MSTATUS};
 use log::{error, info};
 
 use vf2_bootloader::{init, load_kernel};
@@ -19,13 +19,10 @@ const PLIC_IE_BASE: usize = 0x0C00_2080;
 static BLOCK: AtomicBool = AtomicBool::new(true);
 #[no_mangle]
 pub extern "C" fn rust_entry(code_end: usize) -> ! {
-    let mie = mstatus::MStatus::mie;
-    mstatus::clear_mask(mie);
-    let mpp = mstatus::MStatus::mpp;
-    mstatus::set_mask(mpp);
-    let mie_mask: u64 = 1 << 11 | 1 << 7;
-    mie::clear(mie_mask);
-    let hart = mhartid::read();
+    csrc!(MSTATUS, Mstatus::mie.bits());
+    csrs!(MSTATUS, Mstatus::mpp.bits());
+    csrc!(MIE, (Mie::mtie | Mie::meie).bits());
+    let hart = csrr!(MHARTID);
     if hart == 0 {
         disable_interrupt(HART0_PLIC0_IE_BASE);
     } else {

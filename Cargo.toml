@@ -8,9 +8,7 @@ lego_device = { git = "https://github.com/lego-os/lego_device.git", features = [
     "char",
     "block",
 ], branch = "main" }
-lego_arch = { git = "https://github.com/lego-os/lego_arch.git", features = [
-    "rv_mch",
-], branch = "main" }
+lego_arch = { git = "https://github.com/lego-os/lego_arch.git", branch = "main" }
 gpt = { git = "https://github.com/QIUZHILEI/gpt.git", branch = "main" }
 uart_8250 = { git = "https://github.com/QIUZHILEI/uart_8250.git", branch = "main" }
 dw_sd = { git = "https://github.com/QIUZHILEI/dw_sd.git", branch = "main" }

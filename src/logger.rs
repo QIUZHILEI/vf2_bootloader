@@ -20,7 +20,13 @@ impl log::Log for Logger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            println!("[{}] {}", record.level(), record.args());
+            match record.level() {
+                Level::Error => println!("\x1b[31m{}\x1b[0m", record.args()),
+                Level::Warn => println!("\x1b[33m{}\x1b[0m", record.args()),
+                Level::Info => println!("\x1b[32m{}\x1b[0m", record.args()),
+                Level::Debug => println!("\x1b[34m{}\x1b[0m", record.args()),
+                Level::Trace => println!("\x1b[35m{}\x1b[0m", record.args()),
+            }
         }
     }
 

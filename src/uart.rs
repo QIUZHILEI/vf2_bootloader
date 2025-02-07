@@ -28,7 +28,12 @@ pub fn get_byte() -> Option<u8> {
     uart.0.get_char().map_or(None, |c| Some(c))
 }
 
-pub fn uart_mut()->&'static mut dyn Write{
+pub fn write_byte(byte: u8) {
+    let uart = unsafe { (&raw mut UART).as_mut().unwrap() };
+    while uart.0.put_char(byte).is_err() {}
+}
+
+pub fn uart_mut() -> &'static mut dyn Write {
     let uart = unsafe { (&raw mut UART).as_mut().unwrap() };
     uart as _
 }
