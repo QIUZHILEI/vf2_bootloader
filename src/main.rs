@@ -7,8 +7,8 @@ use core::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use lego_arch::{csrc, csrr, csrs, mstatus::Mstatus, Mie, MHARTID, MIE, MSTATUS};
 use log::{error, info};
+use riscv_utils::{csrc, csrr, csrs, mstatus::Mstatus, Mie, MHARTID, MIE, MSTATUS};
 
 use vf2_bootloader::{init, load_kernel};
 global_asm!(include_str!("./entry.S"));
