@@ -7,7 +7,7 @@ fw_img="fw.img"
 rm $fw_img
 cargo clean
 # 编译生成可执行elf文件
-cargo +nightly build --release --target riscv64gc-unknown-none-elf
+cargo build --release --target riscv64gc-unknown-none-elf
 # 将可执行文件转为二进制可执行文件
 riscv64-unknown-elf-objcopy ./target/riscv64gc-unknown-none-elf/release/vf2_bootloader -O binary $fw
 # 替换./tools/fit_img.its文件中的字符firmware_abs_path为固件文件的绝对路径
