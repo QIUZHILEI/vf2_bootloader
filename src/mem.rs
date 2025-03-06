@@ -25,14 +25,14 @@ unsafe impl GlobalAlloc for GlobalAllocator {
         self.pos.fetch_add(size, Ordering::SeqCst) as *mut u8
     }
 
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) { unsafe {
         let mut ptr = ptr;
         let size = next_power_of_two(layout.size());
         for index in 0..size {
             ptr.write(0);
             ptr = ptr.add(index);
         }
-    }
+    }}
 }
 
 pub fn init(start: usize) {

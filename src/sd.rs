@@ -20,6 +20,6 @@ pub fn read_block(lba: usize, blk: &mut [u8]) {
 }
 
 #[inline]
-pub unsafe fn blk_dev_mut() -> &'static mut dyn BlockDevice {
+pub unsafe fn blk_dev_mut() -> &'static mut dyn BlockDevice { unsafe {
     (&raw mut MMC as *mut dyn BlockDevice).as_mut().unwrap()
-}
+}}

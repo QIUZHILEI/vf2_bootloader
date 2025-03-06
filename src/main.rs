@@ -13,7 +13,7 @@ use riscv_utils::{csrc, csrs, mstatus::Mstatus, Mie, MIE, MSTATUS};
 use vf2_bootloader::{init, load_kernel};
 global_asm!(include_str!("./entry.S"));
 
-extern "C" {
+unsafe extern "C" {
     fn _end();
     fn _bss_start();
     fn _bss_end();
@@ -23,7 +23,8 @@ const LOAD_ADDR: usize = 0x40000000;
 const HART0_PLIC0_IE_BASE: usize = 0x0C00_2000;
 const PLIC_IE_BASE: usize = 0x0C00_2080;
 static BLOCK: AtomicBool = AtomicBool::new(true);
-#[no_mangle]
+
+#[unsafe(no_mangle)]
 pub extern "C" fn rust_entry(hart_id: usize) -> ! {
     csrc!(MSTATUS, Mstatus::mie.bits());
     csrs!(MSTATUS, Mstatus::mpp.bits());
