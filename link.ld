@@ -20,10 +20,12 @@ SECTIONS
     } 
     .bss : {
         . = ALIGN(8);
+        _bss_start = .;
         *(.sbss*)
         *(.bss*)
         *(COMMON)
         . = ALIGN(8);
+        _bss_end = .;
     }
     . = ALIGN(4096);
     .kstack : {
